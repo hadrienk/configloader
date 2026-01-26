@@ -1,4 +1,4 @@
-module github.com/coopnorge/member-lib/configloader
+module github.com/hadrienk/configloader
 
 go 1.23.0
 
