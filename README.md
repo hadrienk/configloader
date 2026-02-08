@@ -19,9 +19,9 @@ if err := configloader.Load(&cfg); err != nil {
 // Reads HOST and PORT from environment
 ```
 
-## Loading errors
+# Working with Errors
 
-**See ALL configuration errors at once** — no more frustrating debug cycles where you fix one missing environment variable only to discover another.
+No more frustrating debug cycles where you fix one missing environment variable only to discover another.
 
 Unlike libraries that fail on the first error, configloader validates your entire configuration upfront and reports every issue in a single, clear error message:
 
@@ -32,9 +32,6 @@ failed to load main.Config:
   error processing field Database.URL (*url.URL): environment variable DATABASE_URL not found
   error processing field Database.MaxConns (int): environment variable DATABASE_MAX_CONNS not found
 ```
-
-
-### Working with Errors
 
 Errors returned by `Load()` implement the standard library's multi-error interface (`Unwrap() []error`), allowing you to programmatically inspect individual errors:
 
