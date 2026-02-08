@@ -47,7 +47,8 @@ func (e FieldError) Unwrap() error {
 
 // MissingEnvError represents an error when a required environment variable is not found.
 type MissingEnvError struct {
-	Key string
+	Key      string
+	Optional bool
 }
 
 func (e MissingEnvError) Error() string {

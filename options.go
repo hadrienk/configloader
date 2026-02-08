@@ -119,3 +119,30 @@ func WithEnv(env func(string) (string, bool)) Option {
 		l.env = env
 	}
 }
+
+// WithOptionalTag configures the struct tag name for marking fields as optional.
+// Optional fields will not return an error if their environment variable is missing
+// and no default value is provided. They remain at their zero value instead.
+//
+// The tag value can be:
+//   - Empty string for optional: `optional:""`
+//   - Explicit boolean: `optional:"true"` or `optional:"false"`
+//
+// If a field has both optional and default tags, the default value is used
+// when the environment variable is missing.
+//
+// Example:
+//
+//	type Config struct {
+//	    Required    string              // Error if REQUIRED not set
+//	    Optional    string `optional:""` // OK if OPTIONAL not set, remains ""
+//	    OptionalURL *url.URL `optional:"true"` // OK if not set, remains nil
+//	    WithDefault string `optional:"" default:"fallback"` // Uses fallback
+//	}
+//	
+//	err := configloader.Load(&cfg)
+func WithOptionalTag(tag string) Option {
+	return func(l *Loader) {
+		l.optionalTag = tag
+	}
+}

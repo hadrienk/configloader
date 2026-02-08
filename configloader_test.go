@@ -473,3 +473,192 @@ func TestWithEnv(t *testing.T) {
 		assert.Equal(t, "notFoo", cfg.Val)
 	})
 }
+
+func TestWithOptionalTag(t *testing.T) {
+	t.Run("optional field with no env var", func(t *testing.T) {
+		var cfg struct {
+			Required string
+			Optional string `optional:""`
+		}
+		t.Setenv("REQUIRED", "value")
+		defer os.Clearenv()
+
+		err := Load(&cfg)
+		require.NoError(t, err)
+		assert.Equal(t, "value", cfg.Required)
+		assert.Equal(t, "", cfg.Optional)
+	})
+
+	t.Run("optional pointer field remains nil", func(t *testing.T) {
+		var cfg struct {
+			Required string
+			Optional *string `optional:""`
+		}
+		t.Setenv("REQUIRED", "value")
+		defer os.Clearenv()
+
+		err := Load(&cfg)
+		require.NoError(t, err)
+		assert.Equal(t, "value", cfg.Required)
+		assert.Nil(t, cfg.Optional)
+	})
+
+	t.Run("optional with default uses default", func(t *testing.T) {
+		var cfg struct {
+			Field string `optional:"" default:"fallback"`
+		}
+		defer os.Clearenv()
+
+		err := Load(&cfg)
+		require.NoError(t, err)
+		assert.Equal(t, "fallback", cfg.Field)
+	})
+
+	t.Run("optional with env var uses env var", func(t *testing.T) {
+		var cfg struct {
+			Field string `optional:""`
+		}
+		t.Setenv("FIELD", "from-env")
+		defer os.Clearenv()
+
+		err := Load(&cfg)
+		require.NoError(t, err)
+		assert.Equal(t, "from-env", cfg.Field)
+	})
+
+	t.Run("optional boolean true", func(t *testing.T) {
+		var cfg struct {
+			Field string `optional:"true"`
+		}
+		defer os.Clearenv()
+
+		err := Load(&cfg)
+		require.NoError(t, err)
+		assert.Equal(t, "", cfg.Field)
+	})
+
+	t.Run("required field without optional tag fails", func(t *testing.T) {
+		var cfg struct {
+			Field string
+		}
+		defer os.Clearenv()
+
+		err := Load(&cfg)
+		assert.Error(t, err)
+	})
+
+	t.Run("optional URL field", func(t *testing.T) {
+		var cfg struct {
+			Required string
+			Optional *url.URL `optional:""`
+		}
+		t.Setenv("REQUIRED", "value")
+		defer os.Clearenv()
+
+		err := Load(&cfg)
+		require.NoError(t, err)
+		assert.Nil(t, cfg.Optional)
+	})
+
+	t.Run("optional nested struct fields", func(t *testing.T) {
+		var cfg struct {
+			Database struct {
+				Host     string
+				Port     int `optional:""`
+				Password string `optional:""`
+			}
+		}
+		t.Setenv("DATABASE_HOST", "localhost")
+		defer os.Clearenv()
+
+		err := Load(&cfg)
+		require.NoError(t, err)
+		assert.Equal(t, "localhost", cfg.Database.Host)
+		assert.Equal(t, 0, cfg.Database.Port)
+		assert.Equal(t, "", cfg.Database.Password)
+	})
+
+	t.Run("optional with prefix", func(t *testing.T) {
+		var cfg struct {
+			Required string
+			Optional string `optional:""`
+		}
+		t.Setenv("APP_REQUIRED", "value")
+		defer os.Clearenv()
+
+		err := Load(&cfg, WithPrefix("APP"))
+		require.NoError(t, err)
+		assert.Equal(t, "value", cfg.Required)
+		assert.Equal(t, "", cfg.Optional)
+	})
+
+	t.Run("optional with custom tag name", func(t *testing.T) {
+		var cfg struct {
+			Required string
+			Optional string `opt:""`
+		}
+		t.Setenv("REQUIRED", "value")
+		defer os.Clearenv()
+
+		err := Load(&cfg, WithOptionalTag("opt"))
+		require.NoError(t, err)
+		assert.Equal(t, "value", cfg.Required)
+		assert.Equal(t, "", cfg.Optional)
+	})
+
+	t.Run("optional tag disabled", func(t *testing.T) {
+		var cfg struct {
+			Field string `optional:""`
+		}
+		defer os.Clearenv()
+
+		err := Load(&cfg, WithOptionalTag(""))
+		assert.Error(t, err)
+	})
+
+	t.Run("any optional tag value makes field optional", func(t *testing.T) {
+		var cfg struct {
+			Field string `optional:"maybe"`
+		}
+		defer os.Clearenv()
+
+		err := Load(&cfg)
+		require.NoError(t, err)
+		assert.Equal(t, "", cfg.Field)
+	})
+
+	t.Run("optional slice field", func(t *testing.T) {
+		var cfg struct {
+			Required string
+			Optional []string `optional:""`
+		}
+		t.Setenv("REQUIRED", "value")
+		defer os.Clearenv()
+
+		err := Load(&cfg)
+		require.NoError(t, err)
+		assert.Nil(t, cfg.Optional)
+	})
+
+	t.Run("optional with type conversion error", func(t *testing.T) {
+		var cfg struct {
+			Field int `optional:""`
+		}
+		t.Setenv("FIELD", "not-a-number")
+		defer os.Clearenv()
+
+		err := Load(&cfg)
+		assert.Error(t, err)
+	})
+
+	t.Run("optional with env tag", func(t *testing.T) {
+		var cfg struct {
+			Field string `env:"CUSTOM_NAME" optional:""`
+		}
+		defer os.Clearenv()
+
+		err := Load(&cfg, WithEnvTag("env"))
+		require.NoError(t, err)
+		assert.Equal(t, "", cfg.Field)
+	})
+}

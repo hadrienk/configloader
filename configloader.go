@@ -12,7 +12,7 @@ import (
 )
 
 type Loader struct {
-	prefix, nameTag, envTag, defaultTag string
+	prefix, nameTag, envTag, defaultTag, optionalTag string
 
 	// Type of conversion the struct field will take. Default is SnakeCase.
 	fieldConversion func(string) string
@@ -51,7 +51,8 @@ func defaultLoader() *Loader {
 		env: func(val string) (string, bool) {
 			return os.LookupEnv(strings.ToUpper(val))
 		},
-		defaultTag: "default",
+		defaultTag:  "default",
+		optionalTag: "optional",
 	}
 	for _, opt := range defaultTypeHandlers {
 		opt(l)
@@ -158,10 +159,22 @@ func (l *Loader) parse(variable Field) error {
 	if err != nil {
 		return err
 	}
+
 	value, err := l.lookup(name, variable)
 	if err != nil {
+		// Check if field has optional tag (just check presence, not value)
+		_, optional := variable.Last().Tag.Lookup(l.optionalTag)
+		if optional {
+			// For optional pointer fields that were auto-initialized during traversal,
+			// we need to set them back to zero (nil for pointers).
+			if variable.Value.Kind() == reflect.Ptr {
+				variable.Value.SetZero()
+			}
+			return nil
+		}
 		return err
 	}
+
 	err = l.set(value, variable)
 	if err != nil {
 		return err
@@ -226,6 +239,19 @@ func (l *Loader) handler(typ reflect.Type) (func(reflect.Value, string) error, e
 				}
 				value.Set(slice)
 				return err
+			}, nil
+		}
+	}
+	if typ.Kind() == reflect.Ptr {
+		eh, err := l.handler(typ.Elem())
+		if err == nil {
+			return func(value reflect.Value, val string) error {
+				ptr := reflect.New(typ.Elem())
+				herr := eh(ptr.Elem(), val)
+				// Always set the pointer (to zero value or parsed value)
+				// This matches the behavior of unwrapping pointers in getChildren()
+				value.Set(ptr)
+				return herr
 			}, nil
 		}
 	}
@@ -326,3 +352,5 @@ func (l *Loader) set(value string, variable Field) error {
 	}
 	return nil
 }
+
+
