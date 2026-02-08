@@ -2,7 +2,8 @@ package configloader
 
 import "reflect"
 
-type Option func(*Loader)
+// Option is a functional option for configuring a loader.
+type Option func(*loader)
 
 // WithTypeHandler registers a custom type conversion function for a specific type T.
 // The function should convert a string environment value to type T, returning an error
@@ -14,7 +15,7 @@ type Option func(*Loader)
 //	    return time.ParseDuration(s)
 //	}))
 func WithTypeHandler[T any](f func(string) (T, error)) Option {
-	return func(l *Loader) {
+	return func(l *loader) {
 		var zero T
 		l.handlers[reflect.TypeOf(zero)] = func(value string) (any, error) {
 			return f(value)
@@ -44,7 +45,7 @@ func WithTypeHandler[T any](f func(string) (T, error)) Option {
 //	}
 //	configloader.Load(&cfg, WithPrefix("APP"))
 func WithNameTag(tag string) Option {
-	return func(l *Loader) {
+	return func(l *loader) {
 		l.nameTag = tag
 	}
 }
@@ -73,7 +74,7 @@ func WithNameTag(tag string) Option {
 //	}
 //	configloader.Load(&cfg, WithPrefix("APP"))
 func WithEnvTag(tag string) Option {
-	return func(l *Loader) {
+	return func(l *loader) {
 		l.envTag = tag
 	}
 }
@@ -88,7 +89,7 @@ func WithEnvTag(tag string) Option {
 //	}
 //	configloader.Load(&cfg, WithDefaultTag("default"))
 func WithDefaultTag(tag string) Option {
-	return func(l *Loader) {
+	return func(l *loader) {
 		l.defaultTag = tag
 	}
 }
@@ -103,7 +104,7 @@ func WithDefaultTag(tag string) Option {
 //	}
 //	configloader.Load(&cfg, WithPrefix("APP"))
 func WithPrefix(prefix string) Option {
-	return func(l *Loader) {
+	return func(l *loader) {
 		l.prefix = prefix
 	}
 }
@@ -115,7 +116,7 @@ func WithPrefix(prefix string) Option {
 // The function should return the value and a boolean indicating whether the variable
 // was found, similar to os.LookupEnv.
 func WithEnv(env func(string) (string, bool)) Option {
-	return func(l *Loader) {
+	return func(l *loader) {
 		l.env = env
 	}
 }
@@ -139,10 +140,10 @@ func WithEnv(env func(string) (string, bool)) Option {
 //	    OptionalURL *url.URL `optional:"true"` // OK if not set, remains nil
 //	    WithDefault string `optional:"" default:"fallback"` // Uses fallback
 //	}
-//	
+//
 //	err := configloader.Load(&cfg)
 func WithOptionalTag(tag string) Option {
-	return func(l *Loader) {
+	return func(l *loader) {
 		l.optionalTag = tag
 	}
 }

@@ -1,3 +1,5 @@
+version: "2"
+
 run:
   timeout: 5m
   tests: false
@@ -11,48 +13,57 @@ output:
   print-linter-name: true
 
 linters:
+  disable-all: false
   fast: false
-  disable:
-    - typecheck
   enable:
-    - unparam
-    - unused
-    - unconvert
-    - misspell
+    # Error handling
     - errcheck
-    - contextcheck
+    - errorlint
+    - gosec
+    
+    # Code quality & performance
     - ineffassign
     - staticcheck
     - bodyclose
-    - dupl
-    - errorlint
-    - funlen
-    - gofmt
-    - goimports
-    - gosimple
-    - govet
-    - gocognit
-    - goconst
+    - contextcheck
     - gocritic
+    
+    # Unused code detection
+    - unused
+    - unconvert
+    - unparam
+    
+    # Complexity & duplication
     - gocyclo
-    - goprintffuncname
-    - gosec
-    - prealloc
-    - revive
-    - stylecheck
-    - whitespace
+    - gocognit
     - nestif
+    - dupl
+    - goconst
+    
+    # Go best practices
+    - govet
+    - prealloc
+    - funlen
+    - revive
+    - goprintffuncname
     - godot
-    - gosmopolitan
+    - misspell
+    - whitespace
+
+formatters:
+  enable:
+    - goimports
+    - gofmt
 
 linters-settings:
-  # https://golangci-lint.run/usage/linters/#linters-configuration
   errcheck:
     check-type-assertions: true
     check-blank: true
+  
   goconst:
     min-len: 2
     min-occurrences: 3
+  
   gocritic:
     enabled-tags:
       - diagnostic
@@ -60,9 +71,14 @@ linters-settings:
       - opinionated
       - performance
       - style
+  
   nestif:
     min-complexity: 15
+  
   funlen:
     lines: 100
     ignore-comments: true
-
+  
+  revive:
+    ignore-generated-header: true
+    severity: warning

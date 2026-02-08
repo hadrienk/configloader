@@ -11,7 +11,8 @@ import (
 	"github.com/iancoleman/strcase"
 )
 
-type Loader struct {
+// loader handles loading configuration from environment variables into structs.
+type loader struct {
 	prefix, nameTag, envTag, defaultTag, optionalTag string
 
 	// Type of conversion the struct field will take. Default is SnakeCase.
@@ -24,28 +25,31 @@ type Loader struct {
 	handlers map[reflect.Type]func(string) (any, error)
 }
 
-type Field struct {
+// field represents a struct field being traversed during configuration loading.
+type field struct {
 	Value reflect.Value
 	Path  []reflect.StructField
 }
 
-func (f *Field) Last() reflect.StructField {
+// Last returns the last field in the path.
+func (f *field) Last() reflect.StructField {
 	return f.Path[len(f.Path)-1]
 }
 
-func (f *Field) Names() (names []string) {
+// Names returns the names of all fields in the path.
+func (f *field) Names() (names []string) {
 	for _, field := range f.Path {
 		names = append(names, field.Name)
 	}
 	return names
 }
 
-func (f *Field) String() string {
+func (f *field) String() string {
 	return fmt.Sprintf("%s (%s)", strings.Join(f.Names(), "."), f.Value.Type().String())
 }
 
-func defaultLoader() *Loader {
-	l := &Loader{
+func defaultLoader() *loader {
+	l := &loader{
 		handlers:        make(map[reflect.Type]func(string) (any, error), 0),
 		fieldConversion: strcase.ToScreamingSnake,
 		env: func(val string) (string, bool) {
@@ -125,7 +129,8 @@ func Load(value any, opts ...Option) error {
 	return loader.Load(value)
 }
 
-func (l *Loader) Load(val any) error {
+// Load populates a struct's fields with values from environment variables.
+func (l *loader) Load(val any) error {
 	ptrValue := reflect.ValueOf(val)
 	if ptrValue.Kind() != reflect.Pointer {
 		return fmt.Errorf("val must be a pointer, got '%s'", reflect.TypeOf(val).String())
@@ -139,11 +144,11 @@ func (l *Loader) Load(val any) error {
 	}
 
 	// Iterate over each leaf variables of the struct.
-	for variable := range traverse(Field{Value: ptrValue}, l.getChildren) {
+	for variable := range traverse(field{Value: ptrValue}, l.getChildren) {
 		err := l.parse(variable)
 		if err != nil {
 			errs.Add(FieldError{
-				Field: variable,
+				field: variable,
 				Err:   err,
 			})
 		}
@@ -154,7 +159,7 @@ func (l *Loader) Load(val any) error {
 	return nil
 }
 
-func (l *Loader) parse(variable Field) error {
+func (l *loader) parse(variable field) error {
 	name, err := l.keyName(variable)
 	if err != nil {
 		return err
@@ -182,7 +187,7 @@ func (l *Loader) parse(variable Field) error {
 	return nil
 }
 
-func (l *Loader) keyName(variable Field) (string, error) {
+func (l *loader) keyName(variable field) (string, error) {
 	var names []string
 	if l.prefix != "" {
 		names = append(names, l.prefix)
@@ -214,7 +219,7 @@ func (l *Loader) keyName(variable Field) (string, error) {
 	return key, nil
 }
 
-func (l *Loader) handler(typ reflect.Type) (func(reflect.Value, string) error, error) {
+func (l *loader) handler(typ reflect.Type) (func(reflect.Value, string) error, error) {
 	_, ok := l.handlers[typ]
 	if ok {
 		return func(value reflect.Value, val string) error {
@@ -258,7 +263,7 @@ func (l *Loader) handler(typ reflect.Type) (func(reflect.Value, string) error, e
 	return nil, &UnsupportedTypeError{typ}
 }
 
-func (l *Loader) canHandle(field reflect.Value) bool {
+func (l *loader) canHandle(field reflect.Value) bool {
 	if !field.CanSet() || !field.IsValid() {
 		return false
 	}
@@ -286,7 +291,7 @@ func traverse[T any](root T, childFn func(T) []T) iter.Seq[T] {
 	}
 }
 
-func (l *Loader) getChildren(current Field) []Field {
+func (l *loader) getChildren(current field) []field {
 	if l.canHandle(current.Value) {
 		return nil
 	}
@@ -296,14 +301,14 @@ func (l *Loader) getChildren(current Field) []Field {
 		if current.Value.IsNil() {
 			current.Value.Set(reflect.New(current.Value.Type().Elem()))
 		}
-		return []Field{{
+		return []field{{
 			Value: current.Value.Elem(),
 			Path:  current.Path,
 		}}
 	}
 
 	if current.Value.Kind() == reflect.Struct {
-		var children []Field
+		var children []field
 		for i := 0; i < current.Value.NumField(); i++ {
 			fv := current.Value.Field(i)
 			ft := current.Value.Type().Field(i)
@@ -312,12 +317,12 @@ func (l *Loader) getChildren(current Field) []Field {
 				continue
 			}
 			if ft.Anonymous {
-				children = append(children, Field{
+				children = append(children, field{
 					Value: fv,
 					Path:  current.Path,
 				})
 			} else {
-				children = append(children, Field{
+				children = append(children, field{
 					Value: fv,
 					Path:  append(current.Path, ft),
 				})
@@ -328,7 +333,7 @@ func (l *Loader) getChildren(current Field) []Field {
 	return nil
 }
 
-func (l *Loader) lookup(key string, variable Field) (string, error) {
+func (l *loader) lookup(key string, variable field) (string, error) {
 	field := variable.Path[len(variable.Path)-1]
 	value, found := l.env(key)
 	if !found || value == "" {
@@ -341,7 +346,7 @@ func (l *Loader) lookup(key string, variable Field) (string, error) {
 	return value, nil
 }
 
-func (l *Loader) set(value string, variable Field) error {
+func (l *loader) set(value string, variable field) error {
 	handler, err := l.handler(variable.Value.Type())
 	if err != nil {
 		return err
@@ -352,5 +357,3 @@ func (l *Loader) set(value string, variable Field) error {
 	}
 	return nil
 }
-
-

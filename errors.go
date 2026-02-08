@@ -12,6 +12,7 @@ type ConfigLoadError struct {
 	Errors []error
 }
 
+// Add appends an error to the ConfigLoadError.
 func (e *ConfigLoadError) Add(err error) {
 	if err != nil {
 		e.Errors = append(e.Errors, err)
@@ -33,7 +34,7 @@ func (e *ConfigLoadError) Unwrap() []error {
 
 // FieldError represents an error that occurred while processing a specific field.
 type FieldError struct {
-	Field
+	field
 	Err error
 }
 
